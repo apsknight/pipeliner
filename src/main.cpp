@@ -7,17 +7,47 @@
 #include <bits/stdc++.h>
 using namespace std;
 
+#define MEMORY_CYCLE 3
+
 const vector<string> instructions{"MOV", "LOAD", "STORE", "ADD", "SUB", "OR", "HLT", "NOP"};
 int line = 1;
 vector<string> program;
+vector<int> memory;
 vector<int> waitMap(33, 0);
+map<string, int> storeMap;
 bool resolve = false;
-void perror(string msg) {
-    // Print error on STDOUT.
-    fprintf(stderr, "\033[1;31mError at Line %i: %s\033[0m\n", line, msg.c_str());
-    return;
-}
+ofstream opfile;
 
+class Error {
+private:
+    static void perror(string msg) {
+        // Print error on STDOUT.
+        fprintf(stderr, "\033[1;31mError at Line %i: %s\033[0m\n", line, msg.c_str());
+        return;
+    }
+
+public:
+    static void instruction_not_found(string instr) {
+        perror("Instruction \""+ instr + "\" not found in ISA.");
+    }
+
+    static void unexpected_args(string instr, int expected, int provided) {
+        perror("Instruction \""+ instr + "\" expects " + to_string(expected) + 
+                " arguments, " +  to_string(provided) + " provided.");
+    }
+
+    static void invalid_register(string R) {
+        perror("Register \""+ R + "\" is not a valid register(R1-R32).");
+    }
+    
+    static void invalid_offset(string val) {
+        perror("\""+ val + "\" is not a valid Offset Value.");
+    }
+
+    static void dependent(string R, int line) {
+        perror(R + " is dependent on the instruction at Line " + to_string(line) + ".");
+    }
+};
 vector<string> parse_command(string command) {
     string temp = "";
     vector<string> res;
@@ -43,11 +73,9 @@ bool check_register(string s) {
     if (!s.size()) return false;
     char R = s[0];
     if (s.length() > 3 || R != 'R') {
-        // perror("Register \""+ s + "\" is not a valid register(R1-R32).");
         return false;
     }
     if (s.length() == 2 && (s[1] < '1' || s[1] > '9')) {
-        // perror("Register \""+ s + "\" is not a valid register(R1-R32).");
         return false;
     }
     if (s.length() == 3) {
@@ -63,13 +91,11 @@ bool check_immediate(string s) {
     if (!s.size()) return false;
     char R = s[0];
     if (R != '#') {
-        // perror("\""+ s + "\" is not a valid Immediate Value.");
         return false;       
     }
     for(int j = 1; j < s.length(); j++) {
         char c = s[j];
         if (c < '0' || c > '9') {
-            // perror("\""+ s + "\" is not a valid Immediate Value.");
             return false;     
         }
     }
@@ -125,115 +151,118 @@ bool check_command(vector<string> args) {
     string instr = args[0];
 
     if (find(instructions.begin(), instructions.end(), instr) == instructions.end()) {
-        perror("Instruction \""+ instr + "\" not found in ISA.");
+        Error::instruction_not_found(instr);
         return false;
     }
 
     if (instr == instructions[0]) { // MOV
         if (args.size() != 3) {
-            perror("Instruction \""+ instr + "\" expects 2 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 2, (args.size() - 1));
             return false;
         }
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_register(args[2])) {
-            perror("Register \""+ args[2] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[2]);
             return false;
         }
     }
     else if (instr == instructions[1]) { // LOAD
         if (args.size() != 3) {
-            perror("Instruction \""+ instr + "\" expects 2 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 2, (args.size() - 1));
             return false;
         }
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_offset(args[2])) {
-            perror("\""+ args[2] + "\" is not a valid Offset Value.");
+            Error::invalid_offset(args[2]);
             return false;
         }
     }
     else if (instr == instructions[2]) { // STORE
         if (args.size() != 3) {
-            perror("Instruction \""+ instr + "\" expects 2 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 2, (args.size() - 1));
             return false;
         }   
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_offset(args[2])) {
-            perror("\""+ args[2] + "\" is not a valid Offset Value.");
+            Error::invalid_offset(args[2]);
             return false;
         }
     }
     else if (instr == instructions[3]) { // ADD
         if (args.size() != 4) {
-            perror("Instruction \""+ instr + "\" expects 3 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 3, (args.size() - 1));
             return false;
         }
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_register(args[2])) {
-            perror("Register \""+ args[2] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[2]);
             return false;
         }
         if (!check_register(args[3]) && !check_immediate(args[3])) {
-            perror("\""+ args[2] + "\" is not a valid register or Immediate Value.");
+            Error::invalid_register(args[3]);
+            Error::invalid_offset(args[3]);
             return false;
         }
     }
     else if (instr == instructions[4]) { // SUB
         if (args.size() != 4) {
-            perror("Instruction \""+ instr + "\" expects 3 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 3, (args.size() - 1));
             return false;
         }
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_register(args[2])) {
-            perror("Register \""+ args[2] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[2]);
             return false;
         }
         if (!check_register(args[3]) && !check_immediate(args[3])) {
-            perror("\""+ args[2] + "\" is not a valid register or Immediate Value.");
+            Error::invalid_register(args[3]);
+            Error::invalid_offset(args[3]);
             return false;
         }
     }
     else if (instr == instructions[5]) { // OR
         if (args.size() != 4) {
-            perror("Instruction \""+ instr + "\" expects 3 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 3, (args.size() - 1));
             return false;
         }
         if (!check_register(args[1])) {
-            perror("Register \""+ args[1] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[1]);
             return false;
         }
         if (!check_register(args[2])) {
-            perror("Register \""+ args[2] + "\" is not a valid register(R1-R32).");
+            Error::invalid_register(args[2]);
             return false;
         }
         if (!check_register(args[3]) && !check_immediate(args[3])) {
-            perror("\""+ args[2] + "\" is not a valid register or Immediate Value.");
+            Error::invalid_register(args[3]);
+            Error::invalid_offset(args[3]);
             return false;
         }
     }
     else if (instr == instructions[6]) { // HLT
         if (args.size() != 1) {
-            perror("Instruction \""+ instr + "\" expects 0 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 0, (args.size() - 1));
             return false;
         }
     }
     else if (instr == instructions[7]) { // NOP
         if (args.size() != 1) {
-            perror("Instruction \""+ instr + "\" expects 0 arguments, " +  (char)(args.size() - 1 + '0') + " provided.");
+            Error::unexpected_args(instr, 0, (args.size() - 1));
             return false;
         }
     }
@@ -256,9 +285,25 @@ int register_id(string s) {
     return num;
 }
 
+void resolve_dependency(int steps) {
+    program.insert(program.end(), steps, "NOP");
+    line += steps;
+    for(int i = 1; i < 33; i++) {
+        if (waitMap[i]) waitMap[i] = 0;
+    }
+    cout << "\033[1;32m" << "Quickly resolving dependecy by inserting " << steps << 
+            " NOP instructions." << "\033[0m\n";
+
+    return;
+}
+
 bool updateMap(vector<string> args) {
     for(int i = 1; i < 33; i++) {
         if (waitMap[i]) waitMap[i]--;
+    }
+    for(auto& it : storeMap) {
+        it.second--;
+        it.second = max(it.second, 0);
     }
     if (args[0] == instructions[6] || args[0] == instructions[7]) {
         return true;
@@ -266,66 +311,94 @@ bool updateMap(vector<string> args) {
     else if(args[0] == instructions[0]) { // MOV
         int reg = register_id(args[2]);
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            waitMap[register_id(args[1])] = 4;
+            Error::dependent(args[2], (line-4+waitMap[reg]));
+
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
         waitMap[register_id(args[1])] = 4;
     }
     else if(args[0] == instructions[1]) { // LOAD
         int reg = register_id(register_from_offset(args[2]));
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            // waitMap[register_id(args[1])] = 4;
+            Error::dependent(args[2], (line-4+waitMap[reg]));
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
+        }
+        if (storeMap[args[2]]) {
+            Error::dependent(args[2], (line-3+storeMap[args[2]]));
+            if (resolve) {
+                resolve_dependency(storeMap[args[2]]);
+            }
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
         waitMap[register_id(args[1])] = 4;
+        memory.push_back(line);
     }
     else if(args[0] == instructions[2]) { // STORE
         int reg = register_id(args[1]);
         if (waitMap[reg]) {
-            perror("Register " + args[1] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            Error::dependent(args[1], (line-4+waitMap[reg]));
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
         reg = register_id(register_from_offset(args[2]));
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            Error::dependent(args[2], (line-4+waitMap[reg]));
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
+        memory.push_back(line);
+        storeMap[args[2]] = 3;
     }
     else if(args[0] == instructions[3]) { // ADD
         int reg = register_id(args[2]);
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            Error::dependent(args[2], (line-4+waitMap[reg]));
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
         if (check_register(args[3])) {
             reg = register_id(args[3]);
             if (waitMap[reg]) {
-                perror("Register " + args[3] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+                Error::dependent(args[3], (line-4+waitMap[reg]));
                 if (resolve) {
-                    program.insert(program.end(), waitMap[reg], "NOP");
-                    line += waitMap[reg];
+                    resolve_dependency(waitMap[reg]);
                 }
-                return false;
+                else {
+                    waitMap[register_id(args[1])] = 4;
+                    return false;
+                }
             }
         }
         waitMap[register_id(args[1])] = 4;
@@ -333,22 +406,20 @@ bool updateMap(vector<string> args) {
     else if(args[0] == instructions[4]) { // SUB
         int reg = register_id(args[2]);
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
-            if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
-            }
+            Error::dependent(args[2], (line-4+waitMap[reg]));
             return false;
         }
         if (check_register(args[3])) {
             reg = register_id(args[3]);
             if (waitMap[reg]) {
-                perror("Register " + args[3] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+                Error::dependent(args[3], (line-4+waitMap[reg]));
                 if (resolve) {
-                    program.insert(program.end(), waitMap[reg], "NOP");
-                    line += waitMap[reg];
+                    resolve_dependency(waitMap[reg]);
                 }
-                return false;
+                else {
+                    waitMap[register_id(args[1])] = 4;
+                    return false;
+                }
             }
         }
         waitMap[register_id(args[1])] = 4;
@@ -356,22 +427,26 @@ bool updateMap(vector<string> args) {
     else if(args[0] == instructions[5]) { // OR
         int reg = register_id(args[2]);
         if (waitMap[reg]) {
-            perror("Register " + args[2] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+            Error::dependent(args[2], (line-4+waitMap[reg]));
             if (resolve) {
-                program.insert(program.end(), waitMap[reg], "NOP");
-                line += waitMap[reg];
+                resolve_dependency(waitMap[reg]);
             }
-            return false;
+            else {
+                waitMap[register_id(args[1])] = 4;
+                return false;
+            }
         }
         if (check_register(args[3])) {
             reg = register_id(args[3]);
             if (waitMap[reg]) {
-                perror("Register " + args[3] + " is dependent on the instruction at Line " + (char)(line-4+waitMap[reg]+'0') + ".");
+                Error::dependent(args[3], (line-4+waitMap[reg]));
                 if (resolve) {
-                    program.insert(program.end(), waitMap[reg], "NOP");
-                    line += waitMap[reg];
+                    resolve_dependency(waitMap[reg]);
                 }
-                return false;
+                else {
+                    waitMap[register_id(args[1])] = 4;
+                    return false;
+                }
             }
         }
         waitMap[register_id(args[1])] = 4;
@@ -381,14 +456,36 @@ bool updateMap(vector<string> args) {
 }
 
 int main(int argc, char** argv) {
-
     /* Check if program to be run as shell or Input has to be streamed from file. 
         If an input file is given as CLA, redirect STDIN to this file. */
     if (argc == 2) {
         if (freopen(argv[1], "r", stdin) == NULL) {
-            fprintf(stderr, "Unable to redirect STDIN from given input file.\n");
+            fprintf(stderr, "\033[1;31mUnable to redirect STDIN from given input file.\033[0m\n");
             exit(1);
         }
+    }
+    else if (argc == 3) {
+        if (strcmp(argv[1], "--resolve") || strcmp(argv[1], "-r")) {
+            resolve = true;
+        }
+        else {
+            fprintf(stderr, "\033[1;31mUnknown arguments provided, please check docs.\033[0m\n"); 
+            exit(1);           
+        }
+        if (freopen(argv[2], "r", stdin) == NULL) {
+            fprintf(stderr, "\033[1;31mUnable to redirect STDIN from given input file.\033[0m\n");
+            exit(1);
+        }
+        // if () {
+        //     fprintf(stderr, "\033[1;31mUnable to open file for writing resolved program.\033[0m\n");
+        //     exit(1);
+        // }
+        opfile.open("output.txt");
+        
+    }
+    else {
+        fprintf(stderr, "\033[1;31mError: Expected program file as Command line argument.\033[0m\n");
+        exit(1);
     }
 
     string command;
@@ -398,15 +495,27 @@ int main(int argc, char** argv) {
         vector<string> args = parse_command(command); // Parse command.
 
         // for(auto s : args) cout << s << endl;
-
+        // if (!check_command(args)) cout << command << endl;
         assert(check_command(args)); // Check if command is valid.
 
         updateMap(args);
+
         program.push_back(command);
         line++;
 
         if (args[0] == "HLT") break;
     }
 
+    if (resolve) {
+        for(auto p : program) {
+            opfile << p << endl;
+        }
+    }
+    cout << "Total Amount of Memory Delay(clock cycles): " << memory.size() * MEMORY_CYCLE << endl;
+    for(auto l : memory) {
+        cout << "Memory Delay is present at Line " << l << "." << endl;
+    }
+    cout << "Total Clock Cycle Wasted due to Memory Delay: " << memory.size() * (MEMORY_CYCLE-1) * 3 << endl;
+    cout << "Pipeliner exiting succesfully!" << endl;
     return 0;
 }
