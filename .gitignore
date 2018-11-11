@@ -30,6 +30,7 @@
 *.exe
 *.out
 *.app
+pipeliner
 
 # Input/Output Files
 *.txt
