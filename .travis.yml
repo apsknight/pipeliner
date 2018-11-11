@@ -12,8 +12,6 @@ compiler:
   - g++
   
 install:  
-  # Go to the Root directory  
-  - cd pipeliner
   - make
 
 # Check executable
