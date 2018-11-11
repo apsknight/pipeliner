@@ -28,7 +28,7 @@ Build executable from [Makefile](./Makefile).
 make
 ```
 
-The `make` instruction with create an executable file with name `pipeliner` in the current repository.
+The `make` instruction with create an executable file with name `pipeliner` in the current directory.
 
 ##  Usage
 The executable program takes an input file as an command line arument. This input file contains the Assembly Program which need to be checked. An example Assembly Program: [program.asm](program.asm)
