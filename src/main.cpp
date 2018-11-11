@@ -93,7 +93,7 @@ bool check_immediate(string s) {
     if (R != '#') {
         return false;       
     }
-    for(int j = 1; j < s.length(); j++) {
+    for(unsigned int j = 1; j < s.length(); j++) {
         char c = s[j];
         if (c < '0' || c > '9') {
             return false;     
@@ -105,7 +105,7 @@ bool check_immediate(string s) {
 
 string register_from_offset(string s) {
     int braceIdx;
-    for(int i = 2; i < s.length() - 1; i++) {
+    for(unsigned int i = 2; i < s.length() - 1; i++) {
         if (s[i] == '(') {
             braceIdx = i;
             break;
@@ -113,7 +113,7 @@ string register_from_offset(string s) {
     }
 
     string reg = "";
-    for(int i = braceIdx+1; i < s.length() - 1; i++) reg += s[i];
+    for(unsigned int i = braceIdx+1; i < s.length() - 1; i++) reg += s[i];
 
     return reg;
 }
@@ -124,7 +124,7 @@ bool check_offset(string s) {
     if (s[0] != '#') return false;
     bool brace = false;
     int braceIdx;
-    for(int i = 2; i < s.length() - 1; i++) {
+    for(unsigned int i = 2; i < s.length() - 1; i++) {
         if (s[i] == ')') return false;
         if (s[i] == '(') {
             if (!brace) {
@@ -140,7 +140,7 @@ bool check_offset(string s) {
     string imd = "", reg = "";
 
     for(int i = 0; i < braceIdx; i++) imd += s[i];
-    for(int i = braceIdx+1; i < s.length() - 1; i++) reg += s[i];
+    for(unsigned int i = braceIdx+1; i < s.length() - 1; i++) reg += s[i];
 
     return check_immediate(imd) && check_register(reg);
 }
@@ -288,7 +288,7 @@ int register_id(string s) {
 void resolve_dependency(int steps) {
     program.insert(program.end(), steps, "NOP");
     line += steps;
-    for(int i = 1; i < 33; i++) {
+    for(unsigned int i = 1; i < 33; i++) {
         if (waitMap[i]) waitMap[i] = 0;
     }
     cout << "\033[1;32m" << "Quickly resolving dependecy by inserting " << steps << 
@@ -298,7 +298,7 @@ void resolve_dependency(int steps) {
 }
 
 bool updateMap(vector<string> args) {
-    for(int i = 1; i < 33; i++) {
+    for(unsigned int i = 1; i < 33; i++) {
         if (waitMap[i]) waitMap[i]--;
     }
     for(auto& it : storeMap) {
