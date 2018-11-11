@@ -3,6 +3,11 @@
 >*COA (CS3L002) Assignment: A Program to detect and resolve data-dependency in an assembly program by explicitly inserting `NOP` instructions.* 
 
 Problem Statement: [problem_statement.pdf](problem_statement.pdf)
+
+![screenshot from 2018-11-12 00-33-34](https://user-images.githubusercontent.com/19551774/48317095-f3453900-e612-11e8-8394-a25127df8ee4.png)
+
+See a demo here: <https://asciinema.org/a/xg6MERA5Kkn2VNHUbq23UTI07>
+
 ## Getting Started
 
 Following instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
