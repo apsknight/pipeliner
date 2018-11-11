@@ -1,0 +1,22 @@
+sudo: required
+
+before_install:
+  - sudo apt-get update
+  - sudo apt-get install g++
+  
+# Enable C++ support
+language: cpp
+
+# Compiler selection
+compiler:
+  - g++
+  
+install:  
+  # Go to the Root directory  
+  - cd pipeliner
+  - make
+
+# Check executable
+script:
+  - ./pipeliner program.asm
+  - ./pipeliner -r program.asm
