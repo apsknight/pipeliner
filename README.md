@@ -1,12 +1,10 @@
 # Pipeliner
 
->*COA (CS3L002) Assignment: A Program to detect and resolve data-dependency in an assembly program by explicitly inserting `NOP` instructions.* 
+>*[COA (CS3L002) Assignment](problem_statement.pdf) : A Program to detect and resolve data-dependency in an assembly program by explicitly inserting `NOP` instructions.* 
 
-Problem Statement: [problem_statement.pdf](problem_statement.pdf)
+[![Build Status](https://travis-ci.org/apsknight/pipeliner.svg?branch=master)](https://travis-ci.org/apsknight/pipeliner)
 
-![screenshot from 2018-11-12 00-33-34](https://user-images.githubusercontent.com/19551774/48317095-f3453900-e612-11e8-8394-a25127df8ee4.png)
-
-See a demo here: <https://asciinema.org/a/xg6MERA5Kkn2VNHUbq23UTI07>
+[![asciicast](https://asciinema.org/a/xg6MERA5Kkn2VNHUbq23UTI07.png)](https://asciinema.org/a/xg6MERA5Kkn2VNHUbq23UTI07)
 
 ## Getting Started
 
